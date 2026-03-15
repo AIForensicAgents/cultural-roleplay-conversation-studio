@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cultural Roleplay Conversation Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#f0f4ff',100:'#dbe4ff',200:'#bac8ff',300:'#91a7ff',400:'#748ffc',500:'#5c7cfa',600:'#4c6ef5',700:'#4263eb',800:'#3b5bdb',900:'#364fc7' },
+        accent: { 50:'#fff4e6',100:'#ffe8cc',200:'#ffd8a8',300:'#ffc078',400:'#ffa94d',500:'#ff922b',600:'#fd7e14',700:'#f76707',800:'#e8590c',900:'#d9480f' },
+        surface: { 50:'#f8f9fa',100:'#f1f3f5',200:'#e9ecef',300:'#dee2e6',400:'#ced4da' }
+      }
+    }
+  }
+}
+</script>
+<style>
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Inter', sans-serif; }
+.chat-bubble-ai { border-radius: 18px 18px 18px 4px; }
+.chat-bubble-user { border-radius: 18px 18px 4px 18px; }
+.fade-in { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pulse-dot { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+.typing-dot { width:8px;height:8px;border-radius:50%;background:#748ffc;display:inline-block;animation:pulse-dot 1.4s infinite ease-in-out both; }
+.typing-dot:nth-child(1){animation-delay:-0.32s}
+.typing-dot:nth-child(2){animation-delay:-0.16s}
+.scenario-card:active { transform: scale(0.97); }
+.scenario-card { transition: transform 0.15s ease; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #bac8ff; border-radius: 4px; }
+.avatar-container { position: relative; }
+.avatar-expression { transition: all 0.3s ease; }
+.difficulty-pill { transition: all 0.2s ease; }
+.difficulty-pill.active { transform: scale(1.05); }
+</style>
+</head>
+<body class="bg-surface-50 min-h-screen">
+
+<!-- Global AI Tracking -->
+<script>
+window.aiTotalInputTokens = 0;
+window.aiTotalOutputTokens = 0;
+window.aiTotalTime = 0;
+window.aiTimeByAlias = {};
+</script>
+
+<div id="app" class="max-w-lg mx-auto min-h-screen flex flex-col">
+
+  <!-- SCREEN: Onboarding -->
+  <div id="screen-onboarding" class="hidden flex-col min-h-screen p-6 justify-center items-center text-center">
+    <div class="text-6xl mb-4">🌍</div>
+    <h1 class="text-2xl font-800 text-brand-800 mb-2">Cultural Roleplay<br>Conversation Studio</h1>
+    <p class="text-surface-400 text-sm mb-8 max-w-xs">Practice real-world conversations with culturally-aware AI partners. Get feedback on language, politeness & cultural norms.</p>
+    <div class="w-full space-y-4 mb-8">
+      <div>
+        <label class="block text-left text-xs font-600 text-brand-700 mb-1">Your Name</label>
+        <input id="onboard-name" type="text" placeholder="e.g., Alex" class="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm">
+      </div>
+      <div>
+        <label class="block text-left text-xs font-600 text-brand-700 mb-1">Target Language</label>
+        <select id="onboard-lang" class="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm bg-white">
+          <option value="Japanese">Japanese 🇯🇵</option>
+          <option value="Spanish">Spanish 🇪🇸</option>
+          <option value="French">French 🇫🇷</option>
+          <option value="German">German 🇩🇪</option>
+          <option value="Korean">Korean 🇰🇷</option>
+          <option value="Mandarin Chinese">Mandarin Chinese 🇨🇳</option>
+          <option value="Italian">Italian 🇮🇹</option>
+          <option value="Portuguese">Portuguese 🇧🇷</option>
+          <option value="Arabic">Arabic 🇸🇦</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-left text-xs font-600 text-brand-700 mb-1">Current Level</label>
+        <div class="flex gap-2">
+          <button onclick="setLevel('beginner')" data-level="beginner" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌱 Beginner</button>
+          <button onclick="setLevel('intermediate')" data-level="intermediate" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌿 Intermediate</button>
+          <button onclick="setLevel('advanced')" data-level="advanced" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌳 Advanced</button>
+        </div>
+      </div>
+    </div>
+    <button onclick="completeOnboarding()" class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white font-600 rounded-2xl text-base shadow-lg shadow-brand-200 active:scale-95 transition-transform min-h-[52px]">Get Started 🚀</button>
+  </div>
+
+  <!-- SCREEN: Home / Scenario Selection -->
+  <div id="screen-home" class="hidden flex-col min-h-screen">
+    <!-- Header -->
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+      <div>
+        <h1 class="text-lg font-700 text-brand-800">🌍 Roleplay Studio</h1>
+        <p id="home-greeting" class="text-xs text-surface-400"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="showPhrasebook()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-50 text-accent-600 text-lg" title="Phrasebook">📖</button>
+        <button onclick="showStats()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-50 text-brand-600 text-lg" title="Stats">📊</button>
+        <button onclick="showSettings()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-100 text-surface-400 text-lg" title="Settings">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Streak -->
+    <div id="streak-bar" class="mx-4 mt-3 p-3 bg-gradient-to-r from-accent-50 to-accent-100 rounded-xl flex items-center gap-3">
+      <span class="text-2xl">🔥</span>
+      <div>
+        <p class="text-sm font-600 text-accent-800"><span id="streak-count">0</span> session streak!</p>
+        <p class="text-xs text-accent-600">Keep practicing daily for best results</p>
+      </div>
+    </div>
+
+    <!-- Quick Resume -->
+    <div id="resume-section" class="hidden mx-4 mt-3">
+      <button onclick="resumeSession()" class="w-full p-3 bg-brand-50 border border-brand-200 rounded-xl flex items-center gap-3 text-left">
+        <span class="text-xl">▶️</span>
+        <div>
+          <p class="text-sm font-600 text-brand-700">Continue last session</p>
+          <p id="resume-desc" class="text-xs text-brand-500"></p>
+        </div>
+      </button>
+    </div>
+
+    <!-- Scenarios -->
+    <div class="px-4 mt-4 mb-2">
+      <h2 class="text-sm font-700 text-brand-800 mb-1">Choose a Scenario</h2>
+      <p class="text-xs text-surface-400">Tap to start a culturally immersive roleplay</p>
+    </div>
+    <div id="scenarios-list" class="px-4 pb-24 space-y-3 flex-1 overflow-y-auto"></div>
+
+    <!-- Custom Scenario -->
+    <div class="px-4 pb-6">
+      <button onclick="showCustomScenario()" class="w-full py-3 border-2 border-dashed border-brand-300 rounded-xl text-brand-600 font-500 text-sm hover:bg-brand-50 transition min-h-[48px]">✨ Create Custom Scenario</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Chat / Roleplay -->
+  <div id="screen-chat" class="hidden flex-col min-h-screen">
+    <!-- Chat Header -->
+    <div class="bg-white border-b border-surface-200 px-4 py-2 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="exitChat()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <div class="avatar-container w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-xl flex-shrink-0">
+        <span id="avatar-emoji">👤</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p id="chat-partner-name" class="text-sm font-600 text-brand-800 truncate"></p>
+        <p id="chat-scenario-label" class="text-xs text-surface-400 truncate"></p>
+      </div>
+      <div id="expression-indicator" class="text-2xl transition-all">😊</div>
+      <button onclick="showEtiquetteNotes()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-accent-50 text-accent-500 text-base min-w-[44px]">💡</button>
+    </div>
+
+    <!-- Cultural Context Banner -->
+    <div id="culture-banner" class="mx-3 mt-2 p-2 bg-brand-50 rounded-lg text-xs text-brand-700 flex items-start gap-2 fade-in">
+      <span>🎯</span>
+      <p id="culture-banner-text"></p>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto px-3 py-3 space-y-3 pb-4"></div>
+
+    <!-- Feedback Banner -->
+    <div id="feedback-banner" class="hidden mx-3 mb-2 p-3 rounded-xl text-xs fade-in">
+      <div class="flex items-start gap-2">
+        <span id="feedback-icon">📝</span>
+        <div>
+          <p id="feedback-text" class="text-sm"></p>
+          <button onclick="hideFeedback()" class="mt-1 text-xs underline opacity-70">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Suggested Responses -->
+    <div id="suggested-responses" class="hidden px-3 pb-2">
+      <div class="flex gap-2 overflow-x-auto pb-1" id="suggestions-container"></div>
+    </div>
+
+    <!-- Chat Input -->
+    <div class="bg-white border-t border-surface-200 px-3 py-3 flex gap-2 items-end sticky bottom-0">
+      <button id="btn-hint" onclick="getHint()" class="w-11 h-11 flex items-center justify-center rounded-xl bg-accent-50 text-accent-500 text-lg flex-shrink-0 min-w-[44px]" title="Get hint">💬</button>
+      <div class="flex-1 relative">
+        <textarea id="chat-input" rows="1" placeholder="Type your response..." class="w-full px-4 py-3 rounded-2xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm resize-none max-h-24 overflow-y-auto" oninput="autoResize(this)"></textarea>
+      </div>
+      <button id="btn-send" onclick="sendMessage()" class="w-11 h-11 flex items-center justify-center rounded-xl bg-brand-600 text-white text-lg flex-shrink-0 min-w-[44px] active:scale-90 transition-transform disabled:opacity-40" disabled>➤</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Session Review -->
+  <div id="screen-review" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="goHome()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">Session Review 📋</h1>
+    </div>
+    <div class="px-4 py-4 flex-1 overflow-y-auto pb-24">
+      <!-- Score Card -->
+      <div class="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-6 text-white text-center mb-4">
+        <p class="text-sm opacity-80 mb-1">Overall Score</p>
+        <p id="review-score" class="text-5xl font-800 mb-1">--</p>
+        <p id="review-grade" class="text-sm opacity-80"></p>
+      </div>
+      <!-- Breakdown -->
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+          <p class="text-2xl mb-1">🗣️</p>
+          <p id="review-accuracy" class="text-lg font-700 text-brand-700">--</p>
+          <p class="text-xs text-surface-400">Accuracy</p>
+        </div>
+        <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+          <p class="text-2xl mb-1">🎎</p>
+          <p id="review-culture" class="text-lg font-700 text-brand-700">--</p>
+          <p class="text-xs text-surface-400">Cultural</p>
+        </div>
+        <div class="bg-white rounded-xl p-3 text-center shadow-sm">
+          <p class="text-2xl mb-1">🤝</p>
+          <p id="review-politeness" class="text-lg font-700 text-brand-700">--</p>
+          <p class="text-xs text-surface-400">Politeness</p>
+        </div>
+      </div>
+      <!-- Feedback Details -->
+      <div id="review-details" class="space-y-3 mb-4"></div>
+      <!-- Remediation Tasks -->
+      <div id="review-tasks" class="bg-accent-50 rounded-xl p-4 mb-4">
+        <h3 class="font-600 text-accent-800 text-sm mb-2">🎯 Practice Tasks</h3>
+        <div id="tasks-list" class="space-y-2"></div>
+      </div>
+      <!-- Phrasebook Additions -->
+      <div id="review-phrases" class="bg-brand-50 rounded-xl p-4 mb-4">
+        <h3 class="font-600 text-brand-800 text-sm mb-2">📖 New Phrases to Remember</h3>
+        <div id="phrases-list" class="space-y-2"></div>
+      </div>
+      <button onclick="goHome()" class="w-full py-4 bg-brand-600 text-white font-600 rounded-2xl text-base shadow-lg shadow-brand-200 active:scale-95 transition-transform min-h-[52px]">Back to Scenarios 🏠</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Phrasebook -->
+  <div id="screen-phrasebook" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="goHome()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">📖 Phrasebook</h1>
+    </div>
+    <div id="phrasebook-content" class="px-4 py-4 flex-1 overflow-y-auto pb-24 space-y-3"></div>
+    <div id="phrasebook-empty" class="hidden px-4 py-16 text-center">
+      <p class="text-4xl mb-3">📖</p>
+      <p class="text-surface-400 text-sm">Complete sessions to build your phrasebook!</p>
+    </div>
+  </div>
+
+  <!-- SCREEN: Stats -->
+  <div id="screen-stats" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="goHome()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">📊 Your Progress</h1>
+    </div>
+    <div class="px-4 py-4 flex-1 overflow-y-auto pb-24">
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-white rounded-xl p-4 text-center shadow-sm"><p class="text-3xl mb-1">🎭</p><p id="stat-sessions" class="text-2xl font-800 text-brand-700">0</p><p class="text-xs text-surface-400">Sessions</p></div>
+        <div class="bg-white rounded-xl p-4 text-center shadow-sm"><p class="text-3xl mb-1">⭐</p><p id="stat-avg" class="text-2xl font-800 text-brand-700">--</p><p class="text-xs text-surface-400">Avg Score</p></div>
+        <div class="bg-white rounded-xl p-4 text-center shadow-sm"><p class="text-3xl mb-1">🔥</p><p id="stat-streak" class="text-2xl font-800 text-accent-600">0</p><p class="text-xs text-surface-400">Day Streak</p></div>
+        <div class="bg-white rounded-xl p-4 text-center shadow-sm"><p class="text-3xl mb-1">📝</p><p id="stat-phrases" class="text-2xl font-800 text-brand-700">0</p><p class="text-xs text-surface-400">Phrases</p></div>
+      </div>
+      <div id="stats-history" class="space-y-2"></div>
+      <div id="stats-empty" class="hidden py-12 text-center">
+        <p class="text-4xl mb-3">🌟</p>
+        <p class="text-surface-400 text-sm">Complete sessions to see your progress!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: Settings -->
+  <div id="screen-settings" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="goHome()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">⚙️ Settings</h1>
+    </div>
+    <div class="px-4 py-4 flex-1 overflow-y-auto space-y-4">
+      <div>
+        <label class="block text-xs font-600 text-brand-700 mb-1">Your Name</label>
+        <input id="settings-name" type="text" class="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-600 text-brand-700 mb-1">Target Language</label>
+        <select id="settings-lang" class="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm bg-white">
+          <option value="Japanese">Japanese 🇯🇵</option>
+          <option value="Spanish">Spanish 🇪🇸</option>
+          <option value="French">French 🇫🇷</option>
+          <option value="German">German 🇩🇪</option>
+          <option value="Korean">Korean 🇰🇷</option>
+          <option value="Mandarin Chinese">Mandarin Chinese 🇨🇳</option>
+          <option value="Italian">Italian 🇮🇹</option>
+          <option value="Portuguese">Portuguese 🇧🇷</option>
+          <option value="Arabic">Arabic 🇸🇦</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-600 text-brand-700 mb-1">Current Level</label>
+        <div class="flex gap-2">
+          <button onclick="setSettingsLevel('beginner')" data-slevel="beginner" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌱 Beginner</button>
+          <button onclick="setSettingsLevel('intermediate')" data-slevel="intermediate" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌿 Intermediate</button>
+          <button onclick="setSettingsLevel('advanced')" data-slevel="advanced" class="difficulty-pill flex-1 py-3 rounded-xl border-2 border-surface-300 text-sm font-500 text-surface-400">🌳 Advanced</button>
+        </div>
+      </div>
+      <button onclick="saveSettings()" class="w-full py-4 bg-brand-600 text-white font-600 rounded-2xl text-base min-h-[52px] active:scale-95 transition-transform">Save Settings 💾</button>
+      <button onclick="resetAllData()" class="w-full py-3 text-red-500 text-sm font-500">Reset All Data</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Etiquette Notes -->
+  <div id="screen-etiquette" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="backToChat()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">💡 Etiquette Notes</h1>
+    </div>
+    <div id="etiquette-content" class="px-4 py-4 flex-1 overflow-y-auto pb-24 space-y-3"></div>
+  </div>
+
+  <!-- SCREEN: Custom Scenario -->
+  <div id="screen-custom" class="hidden flex-col min-h-screen">
+    <div class="bg-white border-b border-surface-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+      <button onclick="goHome()" class="w-10 h-10 flex items-center justify-center rounded-xl text-surface-400 text-xl min-w-[44px]">←</button>
+      <h1 class="text-lg font-700 text-brand-800">✨ Custom Scenario</h1>
+    </div>
+    <div class="px-4 py-4 flex-1 overflow-y-auto space-y-4">
+      <p class="text-xs text-surface-400">Describe a situation you want to practice. AI will create a culturally authentic roleplay for you.</p>
+      <textarea id="custom-desc" rows="4" placeholder="e.g., I need to ask my Japanese professor for a letter of recommendation..." class="w-full px-4 py-3 rounded-xl border border-surface-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none text-sm resize-none"></textarea>
+      <button onclick="createCustomScenario()" id="btn-custom-create" class="w-full py-4 bg-brand-600 text-white font-600 rounded-2xl text-base min-h-[52px] active:scale-95 transition-transform">Create & Start 🎭</button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 mx-6 text-center max-w-xs">
+      <div class="flex justify-center gap-1 mb-3">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+      <p id="loading-text" class="text-sm text-brand-700 font-500">Preparing your roleplay...</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ===== STATE =====
+  let userProfile = JSON.parse(localStorage.getItem('crcs_profile')) || null;
+  let sessions = JSON.parse(localStorage.getItem('crcs_sessions')) || [];
+  let phrasebook = JSON.parse(localStorage.getItem('crcs_phrasebook')) || [];
+  let currentSession = null;
+  let chatHistory = [];
+  let currentScenario = null;
+  let isProcessing = false;
+  let settingsLevel = '';
+
+  // ===== SCENARIOS =====
+  const scenarios = [
+    { id:'apt-hunt', emoji:'🏠', title:'Apartment Hunting', desc:'Negotiate with a landlord about renting an apartment', category:'Daily Life', partner:'Landlord', difficulty:'intermediate' },
+    { id:'office-hrs', emoji:'🎓', title:'Professor Office Hours', desc:'Ask your professor about course material & grading', category:'Academic', partner:'Professor', difficulty:'beginner' },
+    { id:'work-intro', emoji:'💼', title:'First Day at Work', desc:'Introduce yourself and navigate workplace small talk', category:'Professional', partner:'Colleague', difficulty:'intermediate' },
+    { id:'restaurant', emoji:'🍽️', title:'Restaurant Ordering', desc:'Order food with dietary requests & proper etiquette', category:'Daily Life', partner:'Server', difficulty:'beginner' },
+    { id:'doctor', emoji:'🏥', title:'Doctor Visit', desc:'Describe symptoms and understand medical advice', category:'Daily Life', partner:'Doctor', difficulty:'intermediate' },
+    { id:'bank', emoji:'🏦', title:'Opening a Bank Account', desc:'Navigate banking procedures in a foreign country', category:'Daily Life', partner:'Bank Clerk', difficulty:'intermediate' },
+    { id:'interview', emoji:'🤝', title:'Job Interview', desc:'Answer questions and present yourself professionally', category:'Professional', partner:'Interviewer', difficulty:'advanced' },
+    { id:'classroom', emoji:'📚', title:'Classroom Discussion', desc:'Participate in an academic seminar discussion', category:'Academic', partner:'Classmate', difficulty:'advanced' },
+    { id:'train', emoji:'🚃', title:'Public Transport Help', desc:'Ask for directions and navigate transit systems', category:'Daily Life', partner:'Local Stranger', difficulty:'beginner' },
+    { id:'party', emoji:'🎉', title:'Social Gathering', desc:'Make friends at a welcome party for international students', category:'Social', partner:'New Friend', difficulty:'beginner' },
+  ];
+
+  // ===== AI CALL =====
+  async function callAI(prompt, retries=3) {
+    const start = Date.now();
+    for(let i=0;i<retries;i++){
+      try {
+        const resp = await fetch('https://16504442930.work/run_prompt', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({alias:'genericAI', params:{prompt}})
+        });
+        const data = await resp.json();
+        const elapsed = Date.now()-start;
+        window.aiTotalTime += elapsed;
+        window.aiTimeByAlias['genericAI'] = (window.aiTimeByAlias['genericAI']||0) + elapsed;
+        if(data.input_tokens) window.aiTotalInputTokens += data.input_tokens;
+        if(data.output_tokens) window.aiTotalOutputTokens += data.output_tokens;
+        if(data.error) {
+          if(i<retries-1) continue;
+          const errMsg = await formatError(data);
+          throw new Error(errMsg);
+        }
+        return data;
+      } catch(e) {
+        if(i>=retries-1) throw e;
+      }
+    }
+  }
+
+  async function formatError(apiResponse) {
+    try {
+      const resp = await fetch('https://16504442930.work/run_prompt', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({alias:'genericAI', params:{prompt:`Reformat this API error into a friendly, empowering message for a language learner. Include what they can try to fix it. Return JSON with key "message" as a string. API Response: ${JSON.stringify(apiResponse)}`}})
+      });
+      const data = await resp.json();
+      return data.message || 'Something went wrong. Please try again!';
+    } catch(e) {
+      return 'Something went wrong. Please try again in a moment! 🔄';
+    }
+  }
+
+  // ===== SCREENS =====
+  function showScreen(id) {
+    document.querySelectorAll('[id^="screen-"]').forEach(s => { s.classList.add('hidden'); s.classList.remove('flex'); });
+    const el = document.getElementById('screen-'+id);
+    if(el){ el.classList.remove('hidden'); el.classList.add('flex'); }
+  }
+
+  // ===== ONBOARDING =====
+  function init() {
+    if(!userProfile) {
+      showScreen('onboarding');
+    } else {
+      showHomeScreen();
+    }
+  }
+
+  window.setLevel = function(level) {
+    document.querySelectorAll('[data-level]').forEach(b => {
+      b.classList.remove('border-brand-500','text-brand-700','bg-brand-50','active');
+      b.classList.add('border-surface-300','text-surface-400');
+    });
+    const btn = document.querySelector(`[data-level="${level}"]`);
+    btn.classList.remove('border-surface-300','text-surface-400');
+    btn.classList.add('border-brand-500','text-brand-700','bg-brand-50','active');
+    document.getElementById('onboard-lang').dataset.selectedLevel = level;
+  };
+
+  window.setSettingsLevel = function(level) {
+    settingsLevel = level;
+    document.querySelectorAll('[data-slevel]').forEach(b => {
+      b.classList.remove('border-brand-500','text-brand-700','bg-brand-50','active');
+      b.classList.add('border-surface-300','text-surface-400');
+    });
+    const btn = document.querySelector(`[data-slevel="${level}"]`);
+    btn.classList.remove('border-surface-300','text-surface-400');
+    btn.classList.add('border-brand-500','text-brand-700','bg-brand-50','active');
+  };
+
+  window.completeOnboarding = function() {
+    const name = document.getElementById('onboard-name').value.trim() || 'Learner';
+    const lang = document.getElementById('onboard-lang').value;
+    const level = document.getElementById('onboard-lang').dataset.selectedLevel || 'beginner';
+    userProfile = { name, language:lang, level, createdAt:Date.now() };
+    localStorage.setItem('crcs_profile', JSON.stringify(userProfile));
+    showHomeScreen();
+  };
+
+  // ===== HOME =====
+  function showHomeScreen() {
+    showScreen('home');
+    document.getElementById('home-greeting').textContent = `Hey ${userProfile.name}! 🎯 ${userProfile.language} • ${userProfile.level}`;
+    
+    // Streak
+    const streak = calcStreak();
+    document.getElementById('streak-count').textContent = streak;
+
+    // Resume
+    const lastSession = JSON.parse(localStorage.getItem('crcs_current_session'));
+    if(lastSession && lastSession.chatHistory && lastSession.chatHistory.length > 0) {
+      document.getElementById('resume-section').classList.remove('hidden');
+      document.getElementById('resume-desc').textContent = lastSession.scenarioTitle || 'Last session';
+    } else {
+      document.getElementById('resume-section').classList.add('hidden');
+    }
+
+    // Render scenarios
+    const list = document.getElementById('scenarios-list');
+    list.innerHTML = '';
+    const categoryOrder = ['Daily Life','Academic','Professional','Social'];
+    const grouped = {};
+    scenarios.forEach(s => {
+      if(!grouped[s.category]) grouped[s.category]=[];
+      grouped[s.category].push(s);
+    });
+    categoryOrder.forEach(cat => {
+      if(!grouped[cat]) return;
+      const catDiv = document.createElement('div');
+      catDiv.innerHTML = `<p class="text-xs font-600 text-surface-400 uppercase tracking-wider mb-2 mt-2">${cat}</p>`;
+      grouped[cat].forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'scenario-card bg-white rounded-xl p-4 shadow-sm border border-surface-100 cursor-pointer flex items-center gap-3 mb-2';
+        card.onclick = () => startScenario(s);
+        const diffColor = s.difficulty==='beginner'?'text-green-600 bg-green-50':s.difficulty==='intermediate'?'text-yellow-600 bg-yellow-50':'text-red-600 bg-red-50';
+        card.innerHTML = `
+          <span class="text-3xl">${s.emoji}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-600 text-brand-800">${s.title}</p>
+            <p class="text-xs text-surface-400 truncate">${s.desc}</p>
+          </div>
+          <span class="text-xs px-2 py-1 rounded-full font-500 ${diffColor} flex-shrink-0">${s.difficulty}</span>
+        `;
+        catDiv.appendChild(card);
+      });
+      list.appendChild(catDiv);
+    });
+  }
+
+  function calcStreak() {
+    if(!sessions.length) return 0;
+    const days = [...new Set(sessions.map(s => new Date(s.timestamp).toDateString()))].sort((a,b)=>new Date(b)-new Date(a));
+    let streak = 0;
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now()-86400000).toDateString();
+    if(days[0]!==today && days[0]!==yesterday) return 0;
+    let checkDate = new Date(days[0]);
+    for(let d of days) {
+      if(new Date(d).toDateString() === checkDate.toDateString()) {
+        streak++;
+        checkDate = new Date(checkDate.getTime()-86400000);
+      } else break;
+    }
+    return streak;
+  }
+
+  // ===== START SCENARIO =====
+  async function startScenario(scenario) {
+    currentScenario = scenario;
+    chatHistory = [];
+    showScreen('chat');
+    document.getElementById('avatar-emoji').textContent = scenario.emoji;
+    document.getElementById('chat-partner-name').textContent = scenario.partner;
+    document.getElementById('chat-scenario-label').textContent = scenario.title;
+    document.getElementById('chat-messages').innerHTML = '';
+    document.getElementById('expression-indicator').textContent = '😊';
+    document.getElementById('chat-input').value = '';
+    document.getElementById('btn-send').disabled = true;
+    hideFeedback();
+    hideSuggestions();
+
+    showLoading('Setting the scene...');
+    try {
+      const prompt = `You are a culturally accurate roleplay scenario creator for language learning. The user is learning ${userProfile.language} at ${userProfile.level} level. Create an opening for this scenario: "${scenario.title} - ${scenario.desc}". The roleplay partner is a ${scenario.partner}.
+
+Return a JSON object with exactly these keys:
+- "partnerName": string - A culturally appropriate name for the partner character
+- "openingMessage": string - The partner's first message in ${userProfile.language} (with ${userProfile.level === 'beginner' ? 'simple' : userProfile.level === 'intermediate' ? 'moderate' : 'complex'} language)
+- "openingTranslation": string - English translation of the opening message
+- "culturalContext": string - A brief cultural tip for this scenario (1-2 sentences in English)
+- "etiquetteNotes": array of strings - 3-5 etiquette tips specific to this scenario and culture
+- "expression": string - One emoji representing the partner's current facial expression/mood
+- "suggestedResponses": array of exactly 3 strings - Possible responses the learner could say in ${userProfile.language}
+
+Be authentic to the culture associated with ${userProfile.language}. The opening should feel natural and immersive.`;
+
+      const data = await callAI(prompt);
+      hideLoading();
+
+      document.getElementById('chat-partner-name').textContent = data.partnerName || scenario.partner;
+      document.getElementById('culture-banner-text').textContent = data.culturalContext || '';
+      document.getElementById('expression-indicator').textContent = data.expression || '😊';
+
+      currentSession = {
+        scenarioId: scenario.id,
+        scenarioTitle: scenario.title,
+        partnerName: data.partnerName || scenario.partner,
+        etiquetteNotes: data.etiquetteNotes || [],
+        startTime: Date.now()
+      };
+
+      // Add AI message
+      const aiMsg = { role:'assistant', content:data.openingMessage||'Hello!', translation:data.openingTranslation||'' };
+      chatHistory.push(aiMsg);
+      renderMessage(aiMsg);
+
+      // Show suggestions
+      if(data.suggestedResponses && data.suggestedResponses.length) {
+        showSuggestions(data.suggestedResponses);
+      }
+
+      saveCurrentSession();
+    } catch(e) {
+      hideLoading();
+      alert(e.message || 'Failed to start scenario. Please try again.');
+      goHome();
+    }
+  }
+
+  // ===== CHAT =====
+  function renderMessage(msg) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.className = 'fade-in';
+
+    if(msg.role === 'assistant') {
+      div.innerHTML = `
+        <div class="flex items-end gap-2 max-w-[85%]">
+          <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">${currentScenario?.emoji||'👤'}</div>
+          <div>
+            <div class="chat-bubble-ai bg-white border border-surface-200 px-4 py-3 shadow-sm">
+              <p class="text-sm text-brand-900">${msg.content}</p>
+              ${msg.translation ? `<p class="text-xs text-surface-400 mt-1 italic">${msg.translation}</p>` : ''}
+            </div>
+          </div>
+        </div>`;
+    } else {
+      div.innerHTML = `
+        <div class="flex items-end gap-2 max-w-[85%] ml-auto justify-end">
+          <div>
+            <div class="chat-bubble-user bg-brand-600 px-4 py-3 shadow-sm">
+              <p class="text-sm text-white">${msg.content}</p>
+            </div>
+            ${msg.feedback ? `<p class="text-xs text-right mt-1 ${msg.feedbackType==='positive'?'text-green-600':'text-amber-600'}">${msg.feedback}</p>` : ''}
+          </div>
+        </div>`;
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function renderTyping() {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.id = 'typing-indicator';
+    div.className = 'fade-in';
+    div.innerHTML = `
+      <div class="flex items-end gap-2 max-w-[85%]">
+        <div class="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center text-sm flex-shrink-0">${currentScenario?.emoji||'👤'}</div>
+        <div class="chat-bubble-ai bg-white border border-surface-200 px-4 py-3 shadow-sm flex gap-1">
+          <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+        </div>
+      </div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing-indicator');
+    if(t) t.remove();
+  }
+
+  window.sendMessage = async function() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if(!text || isProcessing) return;
+
+    isProcessing = true;
+    input.value = '';
+    input.style.height = 'auto';
+    document.getElementById('btn-send').disabled = true;
+    hideSuggestions();
+    hideFeedback();
+
+    const userMsg = { role:'user', content:text };
+    chatHistory.push(userMsg);
+    renderMessage(userMsg);
+    renderTyping();
+
+    try {
+      const historyStr = chatHistory.map(m => `${m.role==='user'?'Learner':'Partner'}: ${m.content}`).join('\n');
+      const turnCount = chatHistory.filter(m=>m.role==='user').length;
+
+      const prompt = `You are conducting a culturally authentic roleplay conversation in ${userProfile.language}. You are playing the role of "${currentSession?.partnerName || 'partner'}" (a ${currentScenario?.partner || 'native speaker'}) in the scenario: "${currentScenario?.title || 'conversation'}".
+
+The learner's level is: ${userProfile.level}
+Conversation so far:
+${historyStr}
+
+The learner just said: "${text}"
+
+Analyze their response and continue the conversation. Return a JSON object with exactly these keys:
+- "response": string - Your next response in ${userProfile.language}, staying in character. ${userProfile.level === 'beginner' ? 'Use simple language.' : userProfile.level === 'intermediate' ? 'Use moderate complexity.' : 'Use natural, complex language.'}
+- "responseTranslation": string - English translation of your response
+- "feedbackType": string - Either "positive", "correction", or "cultural_note"
+- "feedbackMessage": string - Brief feedback on the learner's message (in English). If positive, praise them. If correction, explain the grammatical or vocabulary error gently. If cultural_note, explain the cultural nuance they should know.
+- "expression": string - One emoji showing your character's current mood/reaction
+- "suggestedResponses": array of exactly 3 strings - Possible next responses for the learner in ${userProfile.language}
+- "accuracyScore": number between 0 and 100 - How grammatically/lexically accurate the learner's message was
+- "politenessScore": number between 0 and 100 - How appropriate the politeness level was for the cultural context
+- "shouldEnd": boolean - true if the conversation has reached a natural conclusion point (after ${turnCount >= 6 ? 'this seems like a good stopping point' : 'at least 5-6 exchanges'})
+
+Stay in character as the ${currentScenario?.partner}. Be encouraging but honest about errors. Adapt difficulty to the learner's demonstrated ability.`;
+
+      const data = await callAI(prompt);
+      removeTyping();
+
+      // Update expression
+      document.getElementById('expression-indicator').textContent = data.expression || '😊';
+
+      // Show feedback
+      if(data.feedbackMessage) {
+        showFeedbackBanner(data.feedbackType, data.feedbackMessage);
+        userMsg.feedback = data.feedbackMessage;
+        userMsg.feedbackType = data.feedbackType === 'positive' ? 'positive' : 'correction';
+      }
+
+      // Add AI response
+      const aiMsg = { role:'assistant', content:data.response||'...', translation:data.responseTranslation||'' };
+      chatHistory.push(aiMsg);
+      renderMessage(aiMsg);
+
+      // Suggestions
+      if(data.suggestedResponses && data.suggestedResponses.length) {
+        showSuggestions(data.suggestedResponses);
+      }
+
+      saveCurrentSession();
+
+      // Check if should end
+      if(data.shouldEnd) {
+        setTimeout(() => {
+          if(confirm('🎉 Great conversation! Would you like to end the session and see your review?')) {
+            endSession();
+          }
+        }, 1000);
+      }
+
+    } catch(e) {
+      removeTyping();
+      alert(e.message || 'Failed to get response. Try again!');
+    }
+    isProcessing = false;
+  };
+
+  // ===== SUGGESTIONS =====
+  function showSuggestions(suggestions) {
+    const container = document.getElementById('suggestions-container');
+    container.innerHTML = '';
+    suggestions.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'flex-shrink-0 px-3 py-2 bg-brand-50 border border-brand-200 rounded-full text-xs text-brand-700 font-500 whitespace-nowrap min-h-[36px]';
+      btn.textContent = s;
+      btn.onclick = () => {
+        document.getElementById('chat-input').value = s;
+        document.getElementById('btn-send').disabled = false;
+        hideSuggestions();
+      };
+      container.appendChild(btn);
+    });
+    document.getElementById('suggested-responses').classList.remove('hidden');
+  }
+
+  function hideSuggestions() {
+    document.getElementById('suggested-responses').classList.add('hidden');
+  }
+
+  // ===== FEEDBACK =====
+  function showFeedbackBanner(type, message) {
+    const banner = document.getElementById('feedback-banner');
+    const icon = document.getElementById('feedback-icon');
+    const text = document.getElementById('feedback-text');
+    banner.classList.remove('hidden','bg-green-50','bg-amber-50','bg-blue-50');
+    if(type==='positive') { banner.classList.add('bg-green-50'); icon.textContent='✅'; text.className='text-sm text-green-700'; }
+    else if(type==='correction') { banner.classList.add('bg-amber-50'); icon.textContent='📝'; text.className='text-sm text-amber-700'; }
+    else { banner.classList.add('bg-blue-50'); icon.textContent='🎎'; text.className='text-sm text-blue-700'; }
+    text.textContent = message;
+  }
+
+  window.hideFeedback = function() {
+    document.getElementById('feedback-banner').classList.add('hidden');
+  };
+
+  // ===== HINT =====
+  window.getHint = async function() {
+    if(isProcessing) return;
+    isProcessing = true;
+    showLoading('Getting a hint...');
+    try {
+      const historyStr = chatHistory.map(m => `${m.role==='user'?'Learner':'Partner'}: ${m.content}`).join('\n');
+      const prompt = `The learner is practicing ${userProfile.language} at ${userProfile.level} level in a roleplay scenario: "${currentScenario?.title}".
+
+Conversation so far:
+${historyStr}
+
+The learner needs a hint for what to say next. Return JSON with these keys:
+- "hint": string - A helpful hint in English about what to say and how
+- "examplePhrase": string - An example phrase in ${userProfile.language} they could use or adapt
+- "phraseTranslation": string - English translation of the example phrase
+- "culturalTip": string - A quick cultural tip relevant to this moment`;
+
+      const data = await callAI(prompt);
+      hideLoading();
+      showFeedbackBanner('cultural_note', `💡 ${data.hint || ''}\n📝 "${data.examplePhrase || ''}" (${data.phraseTranslation || ''})\n🎎 ${data.culturalTip || ''}`);
+    } catch(e) {
+      hideLoading();
+      alert('Could not get hint. Try again!');
+    }
+    isProcessing = false;
+  };
+
+  // ===== END SESSION =====
+  async function endSession() {
+    showLoading('Generating your session review...');
+    try {
+      const historyStr = chatHistory.map(m => `${m.role==='user'?'Learner':'Partner'}: ${m.content}`).join('\n');
+      const prompt = `Analyze this ${userProfile.language} language roleplay conversation for a ${userProfile.level} level learner in the scenario "${currentScenario?.title}".
+
+Full conversation:
+${historyStr}
+
+Provide a comprehensive review. Return JSON with exactly these keys:
+- "overallScore": number between 0 and 100
+- "grade": string - A letter grade with brief descriptor (e.g., "B+ Great effort!")
+- "accuracyScore": number between 0 and 100
+- "culturalScore": number between 0 and 100
+- "politenessScore": number between 0 and 100
+- "strengths": array of 2-3 strings - What the learner did well
+- "improvements": array of 2-3 strings - Specific areas to improve with examples
+- "remediationTasks": array of 3 strings - Specific practice exercises the learner should do
+- "newPhrases": array of objects with keys "phrase" (string in ${userProfile.language}), "translation" (string in English), "context" (string - when to use it)
+- "expressionFeedback": string - Brief note on how their communication style came across`;
+
+      const data = await callAI(prompt);
+      hideLoading();
+
+      // Save session
+      const sessionRecord = {
+        id: Date.now(),
+        timestamp: Date.now(),
+        scenarioId: currentScenario?.id,
+        scenarioTitle: currentScenario?.title,
+        score: data.overallScore || 0,
+        accuracy: data.accuracyScore || 0,
+        cultural: data.culturalScore || 0,
+        politeness: data.politenessScore || 0,
+        turns: chatHistory.filter(m=>m.role==='user').length,
+        language: userProfile.language
+      };
+      sessions.push(sessionRecord);
+      localStorage.setItem('crcs_sessions', JSON.stringify(sessions));
+
+      // Save phrases
+      if(data.newPhrases && data.newPhrases.length) {
+        data.newPhrases.forEach(p => {
+          phrasebook.push({ ...p, addedAt:Date.now(), scenario:currentScenario?.title, language:userProfile.language });
+        });
+        localStorage.setItem('crcs_phrasebook', JSON.stringify(phrasebook));
+      }
+
+      // Clear current session
+      localStorage.removeItem('crcs_current_session');
+
+      // Show review
+      showReview(data);
+    } catch(e) {
+      hideLoading();
+      alert(e.message || 'Could not generate review. Your session was saved.');
+      goHome();
+    }
+  }
+
+  function showReview(data) {
+    showScreen('review');
+    document.getElementById('review-score').textContent = data.overallScore || '--';
+    document.getElementById('review-grade').textContent = data.grade || '';
+    document.getElementById('review-accuracy').textContent = (data.accuracyScore||0) + '%';
+    document.getElementById('review-culture').textContent = (data.culturalScore||0) + '%';
+    document.getElementById('review-politeness').textContent = (data.politenessScore||0) + '%';
+
+    const details = document.getElementById('review-details');
+    details.innerHTML = '';
+    
+    if(data.strengths && data.strengths.length) {
+      const div = document.createElement('div');
+      div.className = 'bg-green-50 rounded-xl p-4';
+      div.innerHTML = `<h3 class="font-600 text-green-800 text-sm mb-2">💪 Strengths</h3>${data.strengths.map(s=>`<p class="text-xs text-green-700 mb-1">✓ ${s}</p>`).join('')}`;
+      details.appendChild(div);
+    }
+    if(data.improvements && data.improvements.length) {
+      const div = document.createElement('div');
+      div.className = 'bg-amber-50 rounded-xl p-4';
+      div.innerHTML = `<h3 class="font-600 text-amber-800 text-sm mb-2">📈 Areas to Improve</h3>${data.improvements.map(s=>`<p class="text-xs text-amber-700 mb-1">→ ${s}</p>`).join('')}`;
+      details.appendChild(div);
+    }
+    if(data.expressionFeedback) {
+      const div = document.createElement('div');
+      div.className = 'bg-purple-50 rounded-xl p-4';
+      div.innerHTML = `<h3 class="font-600 text-purple-800 text-sm mb-2">🎭 Communication Style</h3><p class="text-xs text-purple-700">${data.expressionFeedback}</p>`;
+      details.appendChild(div);
+    }
+
+    const tasksList = document.getElementById('tasks-list');
+    tasksList.innerHTML = '';
+    if(data.remediationTasks) {
+      data.remediationTasks.forEach((t,i) => {
+        tasksList.innerHTML += `<p class="text-xs text-accent-700">📌 ${t}</p>`;
+      });
+    }
+
+    const phrasesList = document.getElementById('phrases-list');
+    phrasesList.innerHTML = '';
+    if(data.newPhrases) {
+      data.newPhrases.forEach(p => {
+        phrasesList.innerHTML += `<div class="bg-white rounded-lg p-2"><p class="text-sm font-600 text-brand-800">${p.phrase}</p><p class="text-xs text-surface-400">${p.translation}</p><p class="text-xs text-brand-500 italic">${p.context||''}</p></div>`;
+      });
+    }
+  }
+
+  // ===== ETIQUETTE =====
+  window.showEtiquetteNotes = function() {
+    showScreen('etiquette');
+    const content = document.getElementById('etiquette-content');
+    content.innerHTML = '';
+    const notes = currentSession?.etiquetteNotes || [];
+    if(notes.length) {
+      notes.forEach((n,i) => {
+        content.innerHTML += `<div class="bg-white rounded-xl p-4 shadow-sm fade-in"><p class="text-sm text-brand-800">💡 ${n}</p></div>`;
+      });
+    } else {
+      content.innerHTML = '<p class="text-center text-surface-400 text-sm py-8">No etiquette notes yet. Start a conversation!</p>';
+    }
+  };
+
+  window.backToChat = function() { showScreen('chat'); };
+
+  // ===== PHRASEBOOK =====
+  window.showPhrasebook = function() {
+    showScreen('phrasebook');
+    const content = document.getElementById('phrasebook-content');
+    const empty = document.getElementById('phrasebook-empty');
+    const langPhrases = phrasebook.filter(p => p.language === userProfile.language);
+    if(!langPhrases.length) {
+      content.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    content.classList.remove('hidden');
+    empty.classList.add('hidden');
+    content.innerHTML = '';
+    langPhrases.reverse().forEach(p => {
+      content.innerHTML += `<div class="bg-white rounded-xl p-4 shadow-sm"><p class="text-sm font-600 text-brand-800">${p.phrase}</p><p class="text-xs text-surface-400">${p.translation}</p><p class="text-xs text-brand-500 italic mt-1">${p.context||''}</p><p class="text-xs text-surface-300 mt-1">From: ${p.scenario||'session'}</p></div>`;
+    });
+  };
+
+  // ===== STATS =====
+  window.showStats = function() {
+    showScreen('stats');
+    const langSessions = sessions.filter(s=>s.language === userProfile.language);
+    document.getElementById('stat-sessions').textContent = langSessions.length;
+    document.getElementById('stat-avg').textContent = langSessions.length ? Math.round(langSessions.reduce((a,s)=>a+s.score,0)/langSessions.length) : '--';
+    document.getElementById('stat-streak').textContent = calcStreak();
+    document.getElementById('stat-phrases').textContent = phrasebook.filter(p=>p.language===userProfile.language).length;
+
+    const history = document.getElementById('stats-history');
+    const empty = document.getElementById('stats-empty');
+    if(!langSessions.length) {
+      history.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+    history.classList.remove('hidden');
+    empty.classList.add('hidden');
+    history.innerHTML = '<h3 class="text-sm font-600 text-brand-800 mb-2">Recent Sessions</h3>';
+    langSessions.slice(-10).reverse().forEach(s => {
+      const date = new Date(s.timestamp).toLocaleDateString();
+      history.innerHTML += `<div class="bg-white rounded-xl p-3 shadow-sm flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-lg font-700 text-brand-600">${s.score}</div><div class="flex-1"><p class="text-sm font-500 text-brand-800">${s.scenarioTitle}</p><p class="text-xs text-surface-400">${date} • ${s.turns} turns</p></div></div>`;
+    });
+  };
+
+  // ===== SETTINGS =====
+  window.showSettings = function() {
+    showScreen('settings');
+    document.getElementById('settings-name').value = userProfile.name;
+    document.getElementById('settings-lang').value = userProfile.language;
+    setSettingsLevel(userProfile.level);
+  };
+
+  window.saveSettings = function() {
+    userProfile.name = document.getElementById('settings-name').value.trim() || 'Learner';
+    userProfile.language = document.getElementById('settings-lang').value;
+    userProfile.level = settingsLevel || userProfile.level;
+    localStorage.setItem('crcs_profile', JSON.stringify(userProfile));
+    showHomeScreen();
+  };
+
+  window.resetAllData = function() {
+    if(confirm('⚠️ This will delete all your data including phrasebook and session history. Continue?')) {
+      localStorage.clear();
+      userProfile = null;
+      sessions = [];
+      phrasebook = [];
+      currentSession = null;
+      chatHistory = [];
+      showScreen('onboarding');
+    }
+  };
+
+  // ===== CUSTOM SCENARIO =====
+  window.showCustomScenario = function() { showScreen('custom'); };
+
+  window.createCustomScenario = async function() {
+    const desc = document.getElementById('custom-desc').value.trim();
+    if(!desc) { alert('Please describe your scenario!'); return; }
+
+    document.getElementById('btn-custom-create').disabled = true;
+    showLoading('Creating your custom scenario...');
+
+    try {
+      const prompt = `Create a roleplay scenario for a ${userProfile.language} language learner at ${userProfile.level} level based on this description: "${desc}"
+
+Return JSON with exactly these keys:
+- "title": string - Short title for the scenario
+- "description": string - One sentence description
+- "emoji": string - One emoji representing the scenario
+- "partner": string - The role of the conversation partner (e.g., "Landlord", "Professor")
+- "category": string - One of: "Daily Life", "Academic", "Professional", "Social"
+- "difficulty": string - One of: "beginner", "intermediate", "advanced"`;
+
+      const data = await callAI(prompt);
+      hideLoading();
+      document.getElementById('btn-custom-create').disabled = false;
+
+      const customScenario = {
+        id: 'custom-' + Date.now(),
+        emoji: data.emoji || '✨',
+        title: data.title || 'Custom Scenario',
+        desc: data.description || desc,
+        category: data.category || 'Daily Life',
+        partner: data.partner || 'Native Speaker',
+        difficulty: data.difficulty || userProfile.level
+      };
+
+      startScenario(customScenario);
+    } catch(e) {
+      hideLoading();
+      document.getElementById('btn-custom-create').disabled = false;
+      alert(e.message || 'Could not create scenario. Try again!');
+    }
+  };
+
+  // ===== RESUME =====
+  window.resumeSession = function() {
+    const saved = JSON.parse(localStorage.getItem('crcs_current_session'));
+    if(saved) {
+      currentScenario = saved.scenario;
+      chatHistory = saved.chatHistory || [];
+      currentSession = saved.sessionData;
+      showScreen('chat');
+      document.getElementById('avatar-emoji').textContent = currentScenario?.emoji || '👤';
+      document.getElementById('chat-partner-name').textContent = currentSession?.partnerName || currentScenario?.partner || 'Partner';
+      document.getElementById('chat-scenario-label').textContent = currentScenario?.title || '';
+      document.getElementById('chat-messages').innerHTML = '';
+      chatHistory.forEach(m => renderMessage(m));
+    }
+  };
+
+  function saveCurrentSession() {
+    localStorage.setItem('crcs_current_session', JSON.stringify({
+      scenario: currentScenario,
+      chatHistory,
+      sessionData: currentSession,
+      scenarioTitle: currentScenario?.title
+    }));
+  }
+
+  // ===== EXIT CHAT =====
+  window.exitChat = function() {
+    if(chatHistory.filter(m=>m.role==='user').length >= 3) {
+      const choice = confirm('End session and get your review? (Cancel to keep practicing)');
+      if(choice) { endSession(); return; }
+    }
+    saveCurrentSession();
+    goHome();
+  };
+
+  // ===== NAV =====
+  window.goHome = function() { showHomeScreen(); };
+
+  // ===== UI HELPERS =====
+  function showLoading(text) {
+    document.getElementById('loading-text').textContent = text || 'Loading...';
+    document.getElementById('loading-overlay').classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }
+
+  window.autoResize = function(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 96) + 'px';
+    document.getElementById('btn-send').disabled = !el.value.trim();
+  };
+
+  // Enter to send
+  document.getElementById('chat-input').addEventListener('keydown', function(e) {
+    if(e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ===== INIT =====
+  init();
+})();
+</script>
+</body>
+</html>
